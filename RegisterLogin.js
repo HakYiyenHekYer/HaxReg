@@ -1,12 +1,14 @@
 class RegisterPlugin {
-    constructor(loginTime) {
+    constructor(english, loginTime, saveLocation) {
         this.players = this.loadLocalData() // Hold real permanent information
         this.tempList = new Array(); // Holds temporary information
         this.activeAuths = new Set(); // Active auths in the game (no duplicates allowed)
         this.activeNames = new Set(); // Active logged-in names in the game. Unregistered names are also logged in (no duplicates allowed)
         this.forceRegister = false; // Let's you force new players to register.
         this.forceLogin = true; // WIP - Not useful
-        let that = this
+        this.saveKey = saveLocation == undefined ? "HaxReg" : saveLocation
+        this.english = english == true ? true : false
+        let that = this;
         this.autoSaver = setInterval( function() {
             that.saveLocalData()
         }, 900000)
@@ -25,7 +27,8 @@ class RegisterPlugin {
         this.tempList[id].registered = true
         this.tempList[id].loggedIn = true
         this.players.push(playerObject)
-        room.sendAnnouncement("Başarılı bir şekilde kaydoldunuz! Kullanıcı adı: " + name + " - Bu kullanıcı adını kullanarak istediğiniz yerden şifrenizle giriş yapabilirsiniz.", id, "0X00FF00", "bold", 2)
+        if (this.english) room.sendAnnouncement("Registeration is succesful! User name: " + name + " - You can login from any place using this username and your password.", id, "0X00FF00", "bold", 2)
+        else room.sendAnnouncement("Başarılı bir şekilde kaydoldunuz! Kullanıcı adı: " + name + " - Bu kullanıcı adını kullanarak istediğiniz yerden şifrenizle giriş yapabilirsiniz.", id, "0X00FF00", "bold", 2)
     }
 
     detect(id, name, auth) {
@@ -43,12 +46,14 @@ class RegisterPlugin {
         }
         if (auth == undefined) {
             // Protection against server breaking bugs
-            room.kickPlayer(id, "Kullanıcı bilgisi alınamadı!", false)
+            let msg = this.english ? "Couldn't get user info!" : "Kullanıcı bilgisi alınamadı!"
+            room.kickPlayer(id, msg, false)
             return
         }
         else if (this.activeAuths.has(auth) || this.activeNames.has(name)) {
             // Kick duplicates
-            room.kickPlayer(id, "Kullanıcı zaten oyunda!", false)
+            let msg = this.english ? "User is already in the server!" : "Kullanıcı zaten oyunda!"
+            room.kickPlayer(id, msg, false)
             return
         }
         else {
@@ -76,7 +81,8 @@ class RegisterPlugin {
                 let that = this
                 this.tempList[id].timer = setTimeout( function() {
                     if (that.tempList[target].loggedIn == false) {
-                        room.kickPlayer(target, "Giriş yapmadınız.", false)
+                        let msg = this.english ? "Login time exceeded" : "Giriş yapmadınız."
+                        room.kickPlayer(target, msg, false)
                     }
                 }, this.loginTime)
                 return false
@@ -92,9 +98,11 @@ class RegisterPlugin {
             } 
             else {
                 // Name is already in use and this auth use this name!
-                room.sendAnnouncement("Bu ad zaten kullanılıyor! Lütfen başka isimle geliniz.", id, "0XFFFF00", "bold", 2)
+                let msg = this.english ? "This name is already in use! Please login with another nickname." : "Bu ad zaten kullanılıyor! Lütfen başka isimle geliniz."
+                room.sendAnnouncement(msg, id, "0XFFFF00", "bold", 2)
                 let kickTimeout = setTimeout(function() {
-                    room.kickPlayer(id, "Bu ad zaten kullanılıyor!", false)
+                    let kickMsg = this.english ? "This name is already in use!" : "Bu ad zaten kullanılıyor!"
+                    room.kickPlayer(id, kickMsg, false)
                 }, 2000)
                 return false
             }
@@ -105,7 +113,8 @@ class RegisterPlugin {
         if (password === true) {
             // This represents fast auth login.
             let targetPlayer = this.players.find(p => p.auth == auth)
-            room.sendAnnouncement("Hızlı giriş başarılı! İyi oyunlar.", id, "0X00FF00", "bold", 2)
+            let msg = this.english ? "Quick login is succesful! Have fun." : "Hızlı giriş başarılı! İyi oyunlar."
+            room.sendAnnouncement(msg, id, "0X00FF00", "bold", 2)
             this.activeNames.add(name)
             this.activeAuths.add(auth)
             this.duplicateCheck(id, targetPlayer)
@@ -125,7 +134,8 @@ class RegisterPlugin {
                 // Checks the other duplicates trying to log in.
                 // When logged in, it kicks all the other duplicates trying to log in
                 this.duplicateCheck(id, targetPlayer)
-                room.sendAnnouncement("Başarılı bir şekilde giriş yaptınız! Hızlı giriş bilgileri güncellendi.", id, "0X00FF00", "bold", 2)        
+                let msg = this.english ? "You've succesfuly logged in. Quick login location updated!" : "Başarılı bir şekilde giriş yaptınız! Hızlı giriş bilgileri güncellendi."
+                room.sendAnnouncement(msg, id, "0X00FF00", "bold", 2)        
                 return true
             }
             else {
@@ -136,7 +146,8 @@ class RegisterPlugin {
         } 
         else {
             // This shouldn't happen but, just in case... Kick the player with error message
-            room.kickPlayer(id, "Bir hata oluştu. Lütfen tekrar deneyiniz.", false)
+            let msg = this.english ? "An error has occured. Please try again." : "Bir hata oluştu. Lütfen tekrar deneyiniz."
+            room.kickPlayer(id, msg, false)
             return false
         }
     }
@@ -144,16 +155,19 @@ class RegisterPlugin {
     askRegister(id) {
         if (this.forceRegister) {
             // Registeration is forced!
-            room.sendAnnouncement("Lütfen '!kaydol <şifre>' komutunu kullanarak kayıt olunuz. Bu odada kayıt olmak zorunludur.", id, "0XFFFF00", "bold", 2)
+            let msg = this.english ? "You have to register to play in this server. Please use '!register <password>' command to register." : "Lütfen '!kaydol <şifre>' komutunu kullanarak kayıt olunuz. Bu odada kayıt olmak zorunludur."
+            room.sendAnnouncement(msg, id, "0XFFFF00", "bold", 2)
         }
         else {
-            room.sendAnnouncement("Bilgileriniz kayıtlı kalması için '!kaydol <şifre>' komutu ile kaydolabilirsiniz.", id, "0X00FF00", "bold", 2)
+            let msg = this.english ? "You can use '!register <password>' command to save your progress!" : "Bilgileriniz kayıtlı kalması için '!kaydol <şifre>' komutu ile kaydolabilirsiniz."
+            room.sendAnnouncement(msg, id, "0X00FF00", "bold", 2)
         }
     }
 
     askPassword(id) {
         if (this.forceLogin) {
-            room.sendAnnouncement("Kayıtlı bir hesapla giriş yaptınız. Lütfen '!giriş <şifre>' komutuyla giriş yapınız.", id, "0XFFFF00", "bold", 2)
+            let msg = this.english ? "You've logged in with a registered nickname. Please use '!login <password>' command to log in." : "Kayıtlı bir hesapla giriş yaptınız. Lütfen '!giriş <şifre>' komutuyla giriş yapınız."
+            room.sendAnnouncement(msg, id, "0XFFFF00", "bold", 2)
         }
     }
 
@@ -161,10 +175,12 @@ class RegisterPlugin {
         // Warns the player on wrong password. On 3rd warn, it kicks the player
         this.tempList[id].warned++
         if (this.tempList[id].warned > 2) {
-            room.kickPlayer(id, "Fazla sayıda hatalı giriş!", false)
+            let msg = this.english ? "Too many login attempts." : "Fazla sayıda hatalı giriş!"
+            room.kickPlayer(id, msg, false)
             return false
         }
-        room.sendAnnouncement("Hatalı giriş yaptınız! Lütfen tekrar deneyin.", id, "0XFFFF00", "bold", 2)
+        let msg = this.english ? "Incorrect password! Please try again." : "Hatalı giriş yaptınız! Lütfen tekrar deneyin."
+        room.sendAnnouncement(msg, id, "0XFFFF00", "bold", 2)
     }
 
     msgCheck(id, msg) {
@@ -173,7 +189,7 @@ class RegisterPlugin {
         // This function must be called in onPlayerChat section.
         // Object.msgCheck(player.id, message)
         //
-        if (msg.startsWith("!gir")) {
+        if (msg.startsWith("!gir") || msg.startsWith("!log")) {
             // Checks if the message starts with log in command
             if (this.tempList[id].registered == true) {
                 // Player is registered
@@ -194,20 +210,23 @@ class RegisterPlugin {
                 }
                 else {
                     // Already logged in!
-                    room.sendAnnouncement("Zaten giriş yaptınız!", id, "0X00FF00", "small-bold", 0)
+                    let msg = this.english ? "You're already logged in!" : "Zaten giriş yaptınız!"
+                    room.sendAnnouncement(msg, id, "0X00FF00", "small-bold", 0)
                 }
             }
             else {
                 // Not registed player trying to log in.
-                room.sendAnnouncement("Giriş yapabilmek için önce kayıt olmanız lazım! Eğer zaten kayıtlı bir kullanıcıysanız lütfen kayıt olduğunuz isimle sunucumuza geliniz.", id, "0XFFFF00", "bold", 2)
+                let msg = this.english ? "You need to register first to use the login command. If you're already a registered player, please pick the nickname you've registered with." : "Giriş yapabilmek için önce kayıt olmanız lazım! Eğer zaten kayıtlı bir kullanıcıysanız lütfen kayıt olduğunuz isimle sunucumuza geliniz."
+                room.sendAnnouncement(msg, id, "0XFFFF00", "bold", 2)
             }
         return true
         }
-        else if (msg.startsWith("!kay")) {
+        else if (msg.startsWith("!kay") || msg.startsWith("!reg")) {
              // Checks if the message starts with register command
             if (this.tempList[id].registered) {
                 // Already registered, you can't register
-                room.sendAnnouncement("Bu isimle zaten kayıtlı bir oyuncu mevcut! Giriş yapmak için '!giriş <şifre>' yazmanız yeterli. Hesap size ait değilse lütfen çıkış yapınız.", id, "0XFFFF00", "bold", 2)
+                let msg = this.english ? "This nickname is already registered! Please use '!login <password>' command to log in. Please log out if this account does not belong to you." : "Bu isimle zaten kayıtlı bir oyuncu mevcut! Giriş yapmak için '!giriş <şifre>' yazmanız yeterli. Hesap size ait değilse lütfen çıkış yapınız."
+                room.sendAnnouncement(msg, id, "0XFFFF00", "bold", 2)
             }
             else {
                 // Not registered.
@@ -221,14 +240,16 @@ class RegisterPlugin {
                 }
                 else {
                     // Mistakenly used command
-                    room.sendAnnouncement("Hatalı bir şekilde şifre yazdınız! Lütfen '!kayıt <şifre>' şeklinde şifrenizi giriniz.", id, "0XFFFF00", "bold", 2)
+                    let msg = this.english ? "Incorrect usage. Please enter your password in the '!register <password>' format." : "Hatalı bir şekilde şifre yazdınız! Lütfen '!kayıt <şifre>' şeklinde şifrenizi giriniz."
+                    room.sendAnnouncement(msg, id, "0XFFFF00", "bold", 2)
                 }
             }
         return true // return true to hide the message in chat
         }
         else if (this.tempList[id].registered == true && this.tempList[id].loggedIn == false) {
             // Registered but not logged in player trying to type anything...
-            room.sendAnnouncement("Lütfen '!giriş <şifre>' ile giriş yapınız!", id, "0XFFFF00", "small-bold", 0)
+            let msg = this.english ? "Please use '!login <password>' command to log in!" : "Lütfen '!giriş <şifre>' ile giriş yapınız!"
+            room.sendAnnouncement(msg, id, "0XFFFF00", "small-bold", 0)
             return true // return true to hide the message in chat
         }
     }
@@ -256,7 +277,8 @@ class RegisterPlugin {
                 if (checkers.length > 0) {
                     let duplicates = checkers.filter( o => o.id != id)
                     for (let i=0; i<duplicates.length; i++) {
-                        room.kickPlayer(duplicates[i].id, "Başka bir yerden giriş yapıldı!", false)
+                        let msg = this.english ? "You've logged in from another place!" : "Başka bir yerden giriş yapıldı!"
+                        room.kickPlayer(duplicates[i].id, msg, false)
                     }
                 }
     }
@@ -273,7 +295,7 @@ class RegisterPlugin {
         }
     }
     loadLocalData() {
-        let data = localStorage.getItem("HaxReg")
+        let data = localStorage.getItem(this.saveKey)
         if (data != null) {
             console.log("HaxReg V1.0: Local data loaded succesfully!")
             return JSON.parse(data)
@@ -287,7 +309,7 @@ class RegisterPlugin {
         let info = this.players
         if (info != undefined) {
             let data = JSON.stringify(info)
-            localStorage.setItem("HaxReg", data)
+            localStorage.setItem(this.saveKey, data)
             console.log("HaxReg V1.0: Local data saved succesfully!")
             return true
         }
@@ -300,7 +322,8 @@ class RegisterPlugin {
         room.setPassword(Math.random().toString())
         let players = room.getPlayerList()
         for (let i = 0; i< players.length; i++) {
-            room.kickPlayer(players[i].id, "Oda kapanıyor, iyi günler dileriz", false)
+            let msg = this.english ? "Room is shutting down. Have a nice day." : "Oda kapanıyor, iyi günler dileriz."
+            room.kickPlayer(players[i].id, msg, false)
         }
         clearInterval(this.autoSaver)
         this.saveLocalData()
